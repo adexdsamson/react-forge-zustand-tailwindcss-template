@@ -1,5 +1,5 @@
-import { useMemo, LegacyRef } from "react";
-import { Providers } from "./type";
+import { useMemo, LegacyRef, ComponentType, ComponentPropsWithRef } from "react";
+import { CustomComponentType, Providers } from "./type";
 import { createElement } from "react";
 
 type RenderElementType = {
@@ -19,6 +19,24 @@ const renderChildren = (
         child?.props,
         child?.children?.map((item) => renderChildren?.(item))
       );
+
+type GetProvider<T extends CustomComponentType<T>> = {
+  provider: T;
+  props: CustomComponentType<T>;
+  children?: Providers[];
+};
+
+export const getProvider = <T extends CustomComponentType<T>>({
+  provider,
+  props,
+  children,
+}: GetProvider<T>) => {
+  return {
+    types: provider,
+    props: props,
+    children: children ?? [],
+  };
+};
 
 /**
  * The useEntryPoint function is a custom hook that takes in an object props of type EntryPoint and returns an element based on the provided props.

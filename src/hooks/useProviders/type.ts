@@ -1,11 +1,10 @@
-import { ComponentClass, ComponentProps, FunctionComponent } from "react";
+import { ComponentClass, ComponentProps, ComponentType, FunctionComponent, JSXElementConstructor } from "react";
+
+export type CustomComponentType<T = unknown> = JSXElementConstructor<T> | ComponentType<T>;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type Providers = {
-  types: string | FunctionComponent<any> | ComponentClass<any, any>;
-  props:
-    | ComponentProps<FunctionComponent<any> | ComponentClass<any, any>>
-    | null
-    | undefined;
+  types: CustomComponentType<any>;
+  props: ComponentProps<CustomComponentType<any>> | null | undefined;
   children?: Providers[];
 };
