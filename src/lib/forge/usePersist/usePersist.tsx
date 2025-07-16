@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import React from "react";
 import { useSubscribe } from "../useSubscribe";
 import { Control, FieldValues, EventType } from "react-hook-form";
 
@@ -18,11 +19,14 @@ export const usePersist = <TFieldProps extends FieldValues = FieldValues>({
   control,
   handler,
 }: ForgePersist<TFieldProps>) => {
+  const handlerRef = React.useRef(handler);
+  handlerRef.current = handler;
+
   useSubscribe({
     disabled: false,
     subject: (control as any)._subjects.state,
     next: (formState) => {
-      handler((formState as any).values, (formState as any));
+      handlerRef.current((formState as any).values, (formState as any));
     },
   });
 };

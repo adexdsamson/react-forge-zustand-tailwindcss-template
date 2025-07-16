@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Component, ReactNode, RefObject } from "react";
+import { Accept } from "react-dropzone";
 import {
   Control,
   DefaultValues,
@@ -28,14 +29,16 @@ type AsyncDefaultValues<TFieldValues> = (
 
 export type ForgerProps<TFieldValues extends FieldValues = FieldValues> = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
-  "onChange"
-> &
-  Record<string, any> & {
-    name: Path<TFieldValues>;
-    component: any;
-    label?: string;
-    onChange?: (value: string) => void;
-  };
+  "onChange" | "name"
+> & {
+  name: Path<TFieldValues>;
+  component: any;
+  label?: string | JSX.Element;
+  onChange?: (value: string) => void;
+  accept?: Accept;
+  multiple?: boolean;
+  control?: ForgeControl<TFieldValues>;
+} & Record<string, any>;
 
 export type ForgerControllerProps<
   TFieldValues extends FieldValues = FieldValues
@@ -53,6 +56,7 @@ export type ForgerControllerProps<
   component: Component<ForgerSlotProps>;
   handler?: string;
   methods: UseFormReturn<TFieldValues>;
+  dependencies?: any[];
 } & Record<string, any>;
 
 export type ForgerSlotProps = {
@@ -96,11 +100,33 @@ export type UseForgeResult<T extends FieldValues, TFieldProps = unknown> = Omit<
   control: ForgeControl<T, TFieldProps>;
 };
 
-export type ForgeProps<TFieldValues extends FieldValues, TFieldProps = unknown> = {
+export type ForgeProps<
+  TFieldValues extends FieldValues,
+  TFieldProps = unknown
+> = {
   onSubmit: (submit: TFieldValues) => void;
   className?: string;
   children?: ReactNode;
   control: ForgeControl<TFieldValues, TFieldProps>;
   ref?: RefObject<FormPropsRef | null>;
   isNative?: boolean;
+  debug?: boolean;
+  platform?: 'web' | 'react-native' | 'auto';
 };
+
+// React Native specific types
+export type ReactNativeInputProps = {
+  onChangeText?: (text: string) => void;
+  onValueChange?: (value: any) => void;
+  selected?: boolean;
+  error?: string;
+  setNativeProps?: (props: any) => void;
+};
+
+export type PlatformSpecificProps = {
+  web?: Record<string, any>;
+  reactNative?: ReactNativeInputProps;
+};
+
+export type CrossPlatformForgerProps<TFieldValues extends FieldValues = FieldValues> = 
+  ForgerProps<TFieldValues> & PlatformSpecificProps;

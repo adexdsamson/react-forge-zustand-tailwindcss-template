@@ -24,9 +24,8 @@ import {
   ValidateResult,
   Message,
   ValidationRule,
-  FieldElement,
 } from "react-hook-form";
-import { isUndefined, isObject, isString } from "lodash";
+import { isUndefined, isObject, isString, isNumber } from "lodash";
 
 export const isNullOrUndefined = (value: unknown): value is null | undefined =>
   value == null;
@@ -44,6 +43,10 @@ const isKey = (value: string) => /^\w*$/.test(value);
 const isBoolean = (value: unknown): value is boolean =>
   typeof value === "boolean";
 export const isMessage = (value: unknown): value is Message => isString(value);
+export const isDateObject = (value: unknown): value is Date =>
+  value instanceof Date;
+export const isPrimitive = (value: unknown): value is string | number | boolean =>
+  isString(value) || isNumber(value) || isBoolean(value);
 
 function baseGet(object: any, updatePath: (string | number)[]) {
   const length = updatePath.slice(0, -1).length;
@@ -97,6 +100,8 @@ export const isWeb =
   typeof window !== "undefined" &&
   typeof window.HTMLElement !== "undefined" &&
   typeof document !== "undefined";
+export const isReactNative = !isWeb && typeof navigator !== "undefined" && navigator.product === "ReactNative";
+export const isMobile = isReactNative || (isWeb && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
 export const get = <T>(
   object: T,
@@ -202,7 +207,10 @@ export function cloneObject<T>(data: T): T {
   } else if (data instanceof Set) {
     copy = new Set(data);
   } else if (
+    // Handle web-specific objects only in web environment
     !(isWeb && (data instanceof Blob || data instanceof FileList)) &&
+    // Handle React Native specific objects
+    !(isReactNative && data && typeof data === 'object' && ('uri' in data || '_dispatchInstances' in data)) &&
     (isArray || isObject(data))
   ) {
     copy = isArray ? [] : {};
@@ -344,10 +352,7 @@ export const getValueAndMessage = (validationData?: ValidationRule) =>
       };
 
 export const isHTMLElement = (value: unknown): value is HTMLElement => {
-  if (!isWeb) {
-    return false;
-  }
-
+  if (!isWeb) return false;
   const owner = value ? ((value as HTMLElement).ownerDocument as Document) : 0;
   return (
     value instanceof
@@ -355,17 +360,48 @@ export const isHTMLElement = (value: unknown): value is HTMLElement => {
   );
 };
 
-export const isFileInput = (
-  element: FieldElement
-): element is HTMLInputElement => element.type === "file";
+// React Native compatible element type checking
+export const isTextInput = (element: any): boolean => {
+  if (isReactNative) {
+    return element && (element.displayName === 'TextInput' || element.type === 'TextInput');
+  }
+  return isWeb && element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA');
+};
 
-export const isCheckBoxInput = (
-  element: FieldElement
-): element is HTMLInputElement => element.type === "checkbox";
+export const isFileInput = (element: any): boolean => {
+  if (!isWeb) return false;
+  return element && element.type === "file";
+};
 
-export const isRadioInput = (
-  element: FieldElement
-): element is HTMLInputElement => element.type === "radio";
+export const isCheckBoxInput = (element: any): boolean => {
+  if (isReactNative) {
+    return element && (element.displayName === 'CheckBox' || element.type === 'CheckBox');
+  }
+  return isWeb && element && element.type === "checkbox";
+};
+
+export const isRadioInput = (element: any): boolean => {
+  if (isReactNative) {
+    return element && (element.displayName === 'RadioButton' || element.type === 'RadioButton');
+  }
+  return isWeb && element && element.type === "radio";
+};
+
+// React Native specific component checks
+export const isPicker = (element: any): boolean => {
+  if (!isReactNative) return false;
+  return element && (element.displayName === 'Picker' || element.type === 'Picker');
+};
+
+export const isSwitch = (element: any): boolean => {
+  if (!isReactNative) return false;
+  return element && (element.displayName === 'Switch' || element.type === 'Switch');
+};
+
+export const isSlider = (element: any): boolean => {
+  if (!isReactNative) return false;
+  return element && (element.displayName === 'Slider' || element.type === 'Slider');
+};
 
 type SlotProps = {
   children?: React.ReactNode;
@@ -414,3 +450,70 @@ export function isNestedSlot(child: ReactNode): child is ReactElement {
 export function isInputSlot(child: ReactNode): child is ReactElement {
   return isValidElement(child) && (child as any).props.name;
 }
+
+export default function deepEqual(
+  object1: any,
+  object2: any,
+  _internal_visited = new WeakSet(),
+) {
+  if (isPrimitive(object1) || isPrimitive(object2)) {
+    return object1 === object2;
+  }
+
+  if (isDateObject(object1) && isDateObject(object2)) {
+    return object1.getTime() === object2.getTime();
+  }
+
+  const keys1 = Object.keys(object1);
+  const keys2 = Object.keys(object2);
+
+  if (keys1.length !== keys2.length) {
+    return false;
+  }
+
+  if (_internal_visited.has(object1) || _internal_visited.has(object2)) {
+    return true;
+  }
+  _internal_visited.add(object1);
+  _internal_visited.add(object2);
+
+  for (const key of keys1) {
+    const val1 = object1[key];
+
+    if (!keys2.includes(key)) {
+      return false;
+    }
+
+    if (key !== 'ref') {
+      const val2 = object2[key];
+
+      if (
+        (isDateObject(val1) && isDateObject(val2)) ||
+        (isObject(val1) && isObject(val2)) ||
+        (Array.isArray(val1) && Array.isArray(val2))
+          ? !deepEqual(val1, val2, _internal_visited)
+          : val1 !== val2
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+export const objectHasFunction = <T>(data: T): boolean => {
+  for (const key in data) {
+    if (isFunction(data[key])) {
+      return true;
+    }
+  }
+  return false;
+};
+
+export const isMultipleSelect = (element: any): boolean => {
+  if (!isWeb) return false;
+  return element && element.type === "select-multiple";
+};
+
+

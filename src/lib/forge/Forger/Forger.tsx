@@ -2,7 +2,14 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { isEqual } from "lodash";
-import { isWeb, Slot } from "../utils";
+import {
+  Slot,
+  isReactNative,
+  isTextInput,
+  isPicker,
+  isSwitch,
+  isSlider,
+} from "../utils";
 import { memo } from "react";
 import {
   FieldValues,
@@ -20,7 +27,7 @@ const ForgerController = <TFieldValues extends FieldValues = FieldValues>(
   const {
     field: { onBlur, onChange, value, ref },
     fieldState: { error },
-  } = useController<TFieldValues>({ name, rules, control: methods.control });
+  } = useController<TFieldValues>({ name, rules, control: methods?.control });
   const Component = component as any;
 
   const getTextTransform = (text: string) => {
@@ -31,17 +38,32 @@ const ForgerController = <TFieldValues extends FieldValues = FieldValues>(
     return typeof transform === "undefined" ? text : transform.input?.(text);
   };
 
-  const handleTrigger = handler
-    ? {
-        [handler]: (value: string) => onChange(getTextTransform(value)),
-        onChange: () => {},
+  // Platform-specific event handlers
+  const getEventHandlers = () => {
+    const handlers: any = {};
+    
+    if (handler) {
+      handlers[handler] = (value: string) => onChange(getTextTransform(value));
+      handlers.onChange = () => {};
+    } else if (isReactNative) {
+      // React Native components use different event handlers
+      if (isTextInput(component) || (component as any)?.displayName === 'TextInput') {
+        handlers.onChangeText = (value: string) => onChange(getTextTransform(value));
+        handlers.onChange = () => {};
+      } else if (isSwitch(component) || isPicker(component) || isSlider(component)) {
+        handlers.onValueChange = (value: string) => onChange(getTextTransform(value));
+      } else {
+        handlers.onChange = (value: string) => onChange(getTextTransform(value));
       }
-    : isWeb
-    ? { onChange: (value: string) => onChange(getTextTransform(value)) }
-    : {
-        onChangeText: (value: string) => onChange(getTextTransform(value)),
-        onChange: () => {},
-      };
+    } else {
+      // Web components use standard onChange
+      handlers.onChange = (value: string) => onChange(getTextTransform(value));
+    }
+    
+    return handlers;
+  };
+  
+  const handleTrigger = getEventHandlers();
 
   return (
     <Component
@@ -60,25 +82,37 @@ const ForgerController = <TFieldValues extends FieldValues = FieldValues>(
 const MemorizeController = memo<ForgerControllerProps<FieldValues>>(
   (props) => <ForgerController {...props} />,
   (prev, next) => {
-    const { methods, ...others } = next;
-    const { methods: _, ...rest } = prev;
+    const { methods, dependencies = [], ...others } = next;
+    const { methods: _, dependencies: prevDependencies = [], ...rest } = prev;
 
-    if (_.formState?.isDirty === methods.formState?.isDirty) {
-      return true;
+    // Check if dependencies have changed
+    if (dependencies.length > 0 && prevDependencies.length > 0) {
+      const depsChanged = dependencies.some((dep, index) => 
+        dep !== prevDependencies[index]
+      );
+      if (depsChanged) {
+        return false; // Re-render if dependencies changed
+      }
     }
 
-    if (isEqual(rest, others)) {
-      return true;
+    // Check if form state has changed
+    if (_.formState?.isDirty !== methods.formState?.isDirty) {
+      return false; // Re-render if form state changed
     }
 
-    return true;
+    // Check if other props have changed
+    if (!isEqual(rest, others)) {
+      return false; // Re-render if other props changed
+    }
+
+    return true; // Don't re-render if nothing changed
   }
 );
 
 MemorizeController.displayName = "MemorizeController";
 
 export const Forger = (props: ForgerProps<FieldValues>) => {
-  const methods = useFormContext();
+  const methods = useFormContext() ?? { control: props?.control };
 
   return (
     <Slot>
