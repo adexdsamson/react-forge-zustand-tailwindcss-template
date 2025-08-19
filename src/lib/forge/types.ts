@@ -112,6 +112,7 @@ export type ForgeProps<
   isNative?: boolean;
   debug?: boolean;
   platform?: 'web' | 'react-native' | 'auto';
+  isWizard?: boolean;
 };
 
 // React Native specific types

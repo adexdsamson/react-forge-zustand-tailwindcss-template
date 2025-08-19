@@ -6,6 +6,7 @@ import {
   cloneElement,
   createElement,
   useImperativeHandle,
+  useState,
 } from "react";
 import { FieldValues, FormProvider } from "react-hook-form";
 import { ForgeProps } from "../types";
@@ -35,6 +36,7 @@ export const Forge = <TFieldValues extends FieldValues = FieldValues>({
   isNative,
   debug,
   platform = 'auto',
+  isWizard = false,
 }: ForgeProps<TFieldValues>) => {
   // Determine the actual platform to use
   const actualPlatform = platform === 'auto' 
@@ -42,6 +44,29 @@ export const Forge = <TFieldValues extends FieldValues = FieldValues>({
     : platform;
   
   const isRNMode = actualPlatform === 'react-native' || (isNative && isReactNative);
+  
+  // Wizard state management
+  const [currentStep, setCurrentStep] = useState(0);
+  const childrenArray = Children.toArray(children);
+  const totalSteps = isWizard ? childrenArray.length : 0;
+  
+  // Wizard navigation handlers
+  const handleNext = () => {
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+  
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+  
+  const handleWizardSubmit = () => {
+    control.handleSubmit(onSubmit)();
+  };
+  
   // Recursive function to traverse and process the entire nested tree of children
   const processChildrenRecursively = (children: any, depth = 0): any => {
     // Prevent infinite recursion with a reasonable depth limit
@@ -55,8 +80,35 @@ export const Forge = <TFieldValues extends FieldValues = FieldValues>({
         return child;
       }
 
-      // Handle button elements - attach form submit handler
+      // Handle button elements - attach form submit handler or wizard navigation
       if (isButtonSlot(child)) {
+        const childProps = (child as any).props as any;
+        const wizardNav = childProps['data-wizard-nav'];
+        
+        if (isWizard && wizardNav) {
+          let onClick;
+          let disabled = false;
+          
+          if (wizardNav === 'next') {
+            if (currentStep === totalSteps - 1) {
+              // Last step - submit form
+              onClick = handleWizardSubmit;
+            } else {
+              // Navigate to next step
+              onClick = handleNext;
+            }
+          } else if (wizardNav === 'previous') {
+            onClick = handlePrevious;
+            disabled = currentStep === 0;
+          }
+          
+          return cloneElement(child, {
+            ...childProps,
+            onClick,
+            disabled: disabled || childProps.disabled,
+          } as any);
+        }
+        
         return cloneElement(child, {
           onClick: control.handleSubmit(onSubmit),
         } as any);
@@ -113,7 +165,16 @@ export const Forge = <TFieldValues extends FieldValues = FieldValues>({
     });
   };
 
-  const updatedChildren = processChildrenRecursively(children);
+  // Process children based on wizard mode
+  let updatedChildren;
+  if (isWizard && childrenArray.length > 0) {
+    // In wizard mode, only process and render the current step's child
+    const currentChild = childrenArray[currentStep];
+    updatedChildren = processChildrenRecursively(currentChild);
+  } else {
+    // Normal mode - process all children
+    updatedChildren = processChildrenRecursively(children);
+  }
 
   useImperativeHandle(
     ref,
@@ -141,6 +202,11 @@ export const Forge = <TFieldValues extends FieldValues = FieldValues>({
       <div className={className}>
         {renderFieldProps}
         {updatedChildren}
+        {isWizard && (
+          <div className="wizard-info" style={{ marginTop: '1rem', fontSize: '0.875rem', color: '#666' }}>
+            Step {currentStep + 1} of {totalSteps}
+          </div>
+        )}
       </div>
       {debug && <DevTool control={control} />}
     </FormProvider>
