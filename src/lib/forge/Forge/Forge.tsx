@@ -111,6 +111,7 @@ export const Forge = <TFieldValues extends FieldValues = FieldValues>({
         
         return cloneElement(child, {
           onClick: control.handleSubmit(onSubmit),
+          disabled: !control._formState.isValid,
         } as any);
       }
 
