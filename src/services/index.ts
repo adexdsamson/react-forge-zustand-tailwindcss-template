@@ -1,0 +1,1 @@
+export { useLoginMutation, useGetDashboardQuery } from "./auth.service";

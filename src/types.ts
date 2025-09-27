@@ -2,8 +2,8 @@ import { AxiosResponse, AxiosError } from "axios";
 
 export type User = {
   id: string;
-  first_name: string,
-  last_name: string
+  first_name: string;
+  last_name: string;
 };
 
 export type ApiError = {
@@ -13,3 +13,5 @@ export type ApiError = {
 
 export type ApiResponse<T = unknown> = AxiosResponse<T>;
 export type ApiResponseError = AxiosError<ApiError>;
+
+// =============================== Append other types below ===================================

@@ -6,7 +6,7 @@ import { Toaster } from "./components/ui/toaster";
 import { getProvider } from "./hooks/useProviders";
 import { ErrorFallback } from "./components/layouts/Error";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { QueryClient } from "@tanstack/react-query";
 import {
   createBrowserRouter,
@@ -14,6 +14,14 @@ import {
   RouterProvider,
 } from "react-router-dom";
 
+/**
+ * Fallback loading screen used within Suspense boundary.
+ * @returns {JSX.Element} Loading spinner container
+ * @example
+ * <Suspense fallback={<RenderLoader />}>
+ *   <App />
+ * </Suspense>
+ */
 const RenderLoader = () => {
   return (
     <div className="flex flex-auto items-center justify-center flex-col min-h-[100vh]">
@@ -22,16 +30,34 @@ const RenderLoader = () => {
   );
 };
 
-const router = createBrowserRouter(createRoutesFromElements(routes));
-const persister = createSyncStoragePersister({
-  storage: window.localStorage,
+const router = createBrowserRouter(createRoutesFromElements(routes), {
+  future: { v7_relativeSplatPath: true },
+});
+
+/**
+ * Promise-based adapter around window.localStorage to satisfy the AsyncStorage interface
+ * expected by TanStack's async storage persister.
+ * @example
+ * const persister = createAsyncStoragePersister({ storage: asyncLocalStorage })
+ */
+const asyncLocalStorage = {
+  getItem: async (key: string) => window.localStorage.getItem(key),
+  setItem: async (key: string, value: string) => {
+    window.localStorage.setItem(key, value);
+  },
+  removeItem: async (key: string) => {
+    window.localStorage.removeItem(key);
+  },
+};
+
+const persister = createAsyncStoragePersister({
+  storage: asyncLocalStorage,
 });
 
 export const RouterProviderObject = getProvider({
   provider: RouterProvider,
   props: {
     router,
-    future: { v7_relativeSplatPath: true },
   },
 });
 

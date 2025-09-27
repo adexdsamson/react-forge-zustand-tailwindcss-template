@@ -21,6 +21,15 @@ export type ForgeControl<
 > = Control<T, any> & {
   fields?: FieldProps<TFieldProps>[];
   hasFields: boolean;
+  // Wizard state and functions
+  isWizard?: boolean;
+  currentStep?: number;
+  totalSteps?: number;
+  isFirstStep?: boolean;
+  isLastStep?: boolean;
+  handleNext?: () => void;
+  handlePrevious?: () => void;
+  handleWizardSubmit?: () => void;
 };
 
 type AsyncDefaultValues<TFieldValues> = (
@@ -91,6 +100,10 @@ export type UseForgeProps<
   resolver?: Resolver<TFieldValues>;
   fields?: FieldProps<TFieldProps>[];
   mode?: "onBlur" | "onChange" | "onSubmit" | "onTouched" | "all";
+   // Wizard configuration
+  initialStep?: number;
+  totalSteps?: number;
+  isWizard?: boolean;
 };
 
 export type UseForgeResult<T extends FieldValues, TFieldProps = unknown> = Omit<

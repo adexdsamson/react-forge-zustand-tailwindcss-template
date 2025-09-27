@@ -1,6 +1,7 @@
 "use strict";
 
-import { FieldValues, createFormControl, useForm } from "react-hook-form";
+import { FieldValues, useForm } from "react-hook-form";
+import { useState } from "react";
 import { UseForgeProps, UseForgeResult } from "../types";
 
 /**
@@ -16,21 +17,57 @@ export const useForge = <
   resolver,
   mode,
   fields,
+  isWizard = false,
+  totalSteps = 0,
+  initialStep = 0,
   ...props
 }: UseForgeProps<TFieldProps, TFieldValues>): UseForgeResult<TFieldValues> => {
-  // Create form control using createFormControl instead of useForm
-  const { formControl } = createFormControl<TFieldValues>({
+  // Initialize react-hook-form directly
+  const methods = useForm<TFieldValues>({
     defaultValues,
     resolver,
     mode,
-    ...props,
+    ...(props as any),
   });
-  
-  // Use useForm with the created formControl to maintain the same interface
-  const methods = useForm<TFieldValues>({ formControl });
 
   const hasFields =
     (typeof fields !== "undefined" && fields?.length !== 0) ?? false;
 
-  return { ...methods, control: { ...methods.control, hasFields, fields } };
+  // Wizard state management
+  const [currentStep, setCurrentStep] = useState(initialStep);
+
+  // Wizard navigation handlers
+  const handleNext = () => {
+    
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Create wizard props object
+  const wizardProps = isWizard ? {
+    isWizard,
+    currentStep,
+    totalSteps,
+    isFirstStep: currentStep === 0,
+    isLastStep: currentStep === totalSteps - 1,
+    handleNext,
+    handlePrevious,
+  } : {};
+
+  return { 
+    ...methods, 
+    control: { 
+      ...methods.control, 
+      hasFields, 
+      fields,
+      ...wizardProps
+    } 
+  };
 };
